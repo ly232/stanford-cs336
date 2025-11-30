@@ -19,6 +19,9 @@ dependencies = [
     "tqdm>=4.67.1",
     "wandb>=0.19.7",
     "ty>=0.0.1a16",
+    "pytest-profiling>=1.8.1",
+    "line-profiler>=5.0.0",
+    "pytest-line-profiler>=0.2.1",
 ]
 
 [build-system]

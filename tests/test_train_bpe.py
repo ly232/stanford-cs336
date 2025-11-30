@@ -1,3 +1,9 @@
+"""
+uv run pytest tests/test_train_bpe.py
+
+uv run pytest tests/test_train_bpe.py::test_train_bpe
+"""
+
 import json
 import time
 
@@ -23,6 +29,14 @@ def test_train_bpe_speed():
     end_time = time.time()
     assert end_time - start_time < 1.5
 
+def test_small():
+    input_path = FIXTURES_PATH / "small.txt"
+    vocab, merges = run_train_bpe(
+        input_path=input_path,
+        vocab_size=263,
+        special_tokens=["<|endoftext|>"],
+    )
+    
 
 def test_train_bpe():
     input_path = FIXTURES_PATH / "corpus.en"
@@ -47,6 +61,7 @@ def test_train_bpe():
             )
             for merge_token_1, merge_token_2 in gpt2_reference_merges
         ]
+    # print(reference_merges[:10])
     assert merges == reference_merges
 
     # Compare the vocab to the expected output vocab

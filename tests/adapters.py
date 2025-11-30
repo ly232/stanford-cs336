@@ -561,7 +561,9 @@ def get_tokenizer(
     """
     raise NotImplementedError
 
+# from line_profiler import profile
 
+# @profile
 def run_train_bpe(
     input_path: str | os.PathLike,
     vocab_size: int,
@@ -589,4 +591,57 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    from collections import Counter
+    from itertools import pairwise
+    import regex as re
+
+    with open(input_path, 'r') as f:
+        text = f.read()
+
+    for st in special_tokens:
+        text = text.replace(st, '')
+
+    vocabs = {i: bytes([i]) for i in range(256)}
+    for st in special_tokens:
+        vocabs[len(vocabs)] = st.encode('utf-8')
+
+    merges = []
+
+    # Pre-tokenization.
+    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    pretokens = re.findall(PAT, text)
+    # print(Counter(pretokens))
+
+    text_sequence = []  # dim1: pretoken, dim2: splits within pretoken.
+    for pretoken in pretokens:
+        text_sequence.append([bytes([b]) for b in pretoken.encode('utf-8')])
+
+    while len(vocabs) < vocab_size and len(text_sequence) >= 2:
+        counter = Counter()
+
+        for pretoken in text_sequence:
+            for tok1, tok2 in pairwise(pretoken):
+                counter[(tok1, tok2)] += 1
+
+        tok1, tok2 = \
+            sorted(counter.keys(), key=lambda pair: (counter[pair], pair))[-1]
+
+        idx = len(vocabs)
+        vocabs[idx] = tok1 + tok2
+        merges.append((tok1, tok2))
+
+        new_text_sequence = []
+        for pretoken in text_sequence:
+            i = 0
+            new_pretoken = []
+            while i < len(pretoken):
+                if pretoken[i:i+2] == [tok1, tok2]:
+                    new_pretoken.append(tok1 + tok2)
+                    i += 2
+                else:
+                    new_pretoken.append(pretoken[i])
+                    i += 1
+            new_text_sequence.append(new_pretoken)
+        text_sequence = new_text_sequence
+
+    return vocabs, merges
