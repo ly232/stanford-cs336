@@ -27,6 +27,7 @@ def test_train_bpe_speed():
         special_tokens=["<|endoftext|>"],
     )
     end_time = time.time()
+    print(f'took {end_time - start_time} seconds!!!')
     assert end_time - start_time < 1.5
 
 def test_small():
@@ -40,11 +41,14 @@ def test_small():
 
 def test_train_bpe():
     input_path = FIXTURES_PATH / "corpus.en"
+    start_time = time.time()
     vocab, merges = run_train_bpe(
         input_path=input_path,
         vocab_size=500,
         special_tokens=["<|endoftext|>"],
     )
+    end_time = time.time()
+    print(f'took {end_time - start_time} seconds!!!')
 
     # Path to the reference tokenizer vocab and merges
     reference_vocab_path = FIXTURES_PATH / "train-bpe-reference-vocab.json"

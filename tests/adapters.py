@@ -610,38 +610,70 @@ def run_train_bpe(
     # Pre-tokenization.
     PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
     pretokens = re.findall(PAT, text)
-    # print(Counter(pretokens))
 
-    text_sequence = []  # dim1: pretoken, dim2: splits within pretoken.
-    for pretoken in pretokens:
-        text_sequence.append([bytes([b]) for b in pretoken.encode('utf-8')])
+    # Optimization to avoid repeating the pairwise sliding for the same pretoken
+    pretokens_counter = Counter(pretokens)
 
-    while len(vocabs) < vocab_size and len(text_sequence) >= 2:
+    # maps pretoken string to token bytes split.
+    text_sequence = {
+        pretoken: [bytes([b]) for b in pretoken.encode('utf-8')]
+        for pretoken in pretokens
+    }
+    # for pretoken in pretokens:
+    #     text_sequence.append([bytes([b]) for b in pretoken.encode('utf-8')])
+
+    from collections import defaultdict
+    import time
+    profile = defaultdict(list)
+
+    while len(vocabs) < vocab_size:
         counter = Counter()
 
+        # Optimization to avoid recomputing the pairwise sliding in a pretoken.
+        visited_pretokens = set()
+        start_time = time.time()
         for pretoken in text_sequence:
-            for tok1, tok2 in pairwise(pretoken):
-                counter[(tok1, tok2)] += 1
+            if pretoken in visited_pretokens:
+                continue
+            visited_pretokens.add(pretoken)
+            for tok1, tok2 in pairwise(text_sequence[pretoken]):
+                counter[(tok1, tok2)] += \
+                    pretokens_counter[pretoken]
+        end_time = time.time()
+        profile['pretoken_pairwise_scan'].append(end_time - start_time)
 
+        start_time = time.time()
         tok1, tok2 = \
             sorted(counter.keys(), key=lambda pair: (counter[pair], pair))[-1]
+        end_time = time.time()
+        profile['counter_key_sort'].append(end_time - start_time)
 
         idx = len(vocabs)
         vocabs[idx] = tok1 + tok2
         merges.append((tok1, tok2))
 
-        new_text_sequence = []
+        new_text_sequence = {}
+        start_time = time.time()
         for pretoken in text_sequence:
+            if pretoken in new_text_sequence:
+                continue
             i = 0
-            new_pretoken = []
-            while i < len(pretoken):
-                if pretoken[i:i+2] == [tok1, tok2]:
+            new_pretoken = []  # new pretoken bytes sequence
+            old_pretoken = text_sequence[pretoken]  # old pretoken bytes seq
+            while i < len(old_pretoken):
+                if old_pretoken[i:i+2] == [tok1, tok2]:
                     new_pretoken.append(tok1 + tok2)
                     i += 2
                 else:
-                    new_pretoken.append(pretoken[i])
+                    new_pretoken.append(old_pretoken[i])
                     i += 1
-            new_text_sequence.append(new_pretoken)
+            new_text_sequence[pretoken] = new_pretoken
+        end_time = time.time()
+        profile['new_text_sequence'].append(end_time - start_time)
         text_sequence = new_text_sequence
+
+    import numpy as np
+    for k, v in profile.items():
+        print(f'avg latency for "{k}": {np.mean(v)} seconds; total: {np.sum(v)}')
 
     return vocabs, merges
