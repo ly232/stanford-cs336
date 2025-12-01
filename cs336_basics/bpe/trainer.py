@@ -1,7 +1,9 @@
 from collections import Counter
 from itertools import pairwise
-import regex as re
+
+import pickle
 import os
+import regex as re
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -13,6 +15,23 @@ class BpeTrainer:
 
         self.vocabs: dict[int, bytes] = {}
         self.merges: list[tuple[bytes, bytes]] = []
+
+    def persist(
+            self, 
+            vocab_path: str | os.PathLike, 
+            merges_path: str | os.PathLike):
+        with open(file=vocab_path, mode='wb') as f:
+            pickle.dump(self.vocabs, f)
+        with open(file=merges_path, mode='wb') as f:
+            pickle.dump(self.merges, f)
+
+    def __str__(self):
+        debug_str = f"""
+        vocabs: {self.vocabs},
+
+        merges: {self.merges}
+        """
+        return debug_str
 
     def train(self, input_path: str | os.PathLike):
         with open(input_path, 'r') as f:
