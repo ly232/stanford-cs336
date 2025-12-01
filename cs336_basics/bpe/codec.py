@@ -17,7 +17,7 @@ class BpeCodec:
             token: idx
             for idx, token in vocabs.items()
         }
-        self.merges = set(merges)
+        self.merges = merges
         self.special_tokens = special_tokens
 
         self.pretokenizer = Pretokenizer(special_tokens)
@@ -34,18 +34,22 @@ class BpeCodec:
         pretokens = self.pretokenizer.split(text)
         ids = []
         for pretoken in pretokens:
-            tokens = deque([bytes([b]) for b in pretoken.encode('utf-8')])
-            while tokens:
-                if len(tokens) == 1:
-                    token = tokens.popleft()
-                    ids.append(self.inverted_vocabs[token])
-                    break
-                tok1, tok2 = tokens.popleft(), tokens.popleft()
-                if (tok1, tok2) in self.merges:
-                    tokens.appendleft(tok1 + tok2)
-                else:
-                    tokens.appendleft(tok2)
-                    ids.append(self.inverted_vocabs[tok1])
+            tokens = [bytes([b]) for b in pretoken.encode('utf-8')]
+            for merge in self.merges:
+                new_tokens = []
+                i = 0
+                while i < len(tokens):
+                    if i == len(tokens) - 1:
+                        new_tokens.append(tokens[i])
+                        break
+                    if (tokens[i], tokens[i+1]) == merge:
+                        new_tokens.append(tokens[i] + tokens[i+1])
+                        i += 2
+                    else:
+                        new_tokens.append(tokens[i])
+                        i += 1
+                tokens = new_tokens
+            ids.extend([self.inverted_vocabs[t] for t in tokens])
         return ids
 
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
