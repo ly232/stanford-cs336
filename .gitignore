@@ -163,4 +163,4 @@ cython_debug/
 *.zip
 
 prof/
-cs336_basics/analysis/
+cs336_basics/analysis/data/
