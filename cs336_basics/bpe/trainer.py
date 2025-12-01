@@ -1,5 +1,6 @@
 from collections import Counter
 from itertools import pairwise
+from cs336_basics.bpe.pretokenizer import Pretokenizer
 
 import pickle
 import os
@@ -15,6 +16,8 @@ class BpeTrainer:
 
         self.vocabs: dict[int, bytes] = {}
         self.merges: list[tuple[bytes, bytes]] = []
+
+        self.pretokenizer = Pretokenizer(special_tokens)
 
     def persist(
             self, 
@@ -36,39 +39,16 @@ class BpeTrainer:
     def train(self, input_path: str | os.PathLike):
         with open(input_path, 'r') as f:
             text = f.read()
-
-        chunks = [text]
-        for st in self.special_tokens:
-            new_chunks = []
-            while chunks:
-                chunk = chunks.pop()
-                new_chunks.extend(chunk.split(st))
-            chunks = new_chunks
-
-        vocabs = {i: bytes([i]) for i in range(256)}
-        for st in self.special_tokens:
-            vocabs[len(vocabs)] = st.encode('utf-8')
-
-        merges = []
-
-        # Pre-tokenization.
-        pretokens = []
-        for chunk in chunks:
-            pretokens.extend(re.findall(PAT, chunk))
-
-        # Optimization to avoid repeating the pairwise sliding for the same pretoken
-        pretokens_counter = Counter(pretokens)
-
-        # maps pretoken string to token bytes split.
-        text_sequence = {
-            pretoken: [bytes([b]) for b in pretoken.encode('utf-8')]
-            for pretoken in pretokens
-        }
+        text_sequence, pretokens_counter = self.pretokenizer.pretokenize(text)
 
         from collections import defaultdict
         import time
         profile = defaultdict(list)
 
+        vocabs = {i: bytes([i]) for i in range(256)}
+        for st in self.special_tokens:
+            vocabs[len(vocabs)] = st.encode('utf-8')
+        merges = []
         while len(vocabs) < self.vocab_size:
             counter = Counter()
 

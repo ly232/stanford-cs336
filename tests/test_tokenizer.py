@@ -1,3 +1,9 @@
+"""
+uv run pytest tests/test_tokenizer.py
+
+uv run pytest tests/test_tokenizer.py::test_ascii_string_matches_tiktoken
+"""
+
 from __future__ import annotations
 
 import json
@@ -170,6 +176,36 @@ def test_roundtrip_ascii_string():
     encoded_ids = tokenizer.encode(test_string)
     decoded_string = tokenizer.decode(encoded_ids)
     assert test_string == decoded_string
+
+
+def test_small():
+    """Test case inspired from assignment 1's instruction."""
+    from cs336_basics.bpe.codec import BpeCodec
+    codec = BpeCodec(
+        vocabs={
+            0: b' ',
+            1: b'a',
+            2: b'c',
+            3: b'e',
+            4: b'h',
+            5: b't',
+            6: b'th',
+            7: b' c',
+            8: b' a',
+            9: b'the',
+            10: b' at',
+        },
+        merges=[
+            (b't', b'h'),
+            (b' ', b'c'),
+            (b' ', b'a'),
+            (b'th', b'e'),
+            (b' a', b't'),
+        ],
+    )
+    text = 'the cat ate'
+    assert codec.encode(text) == [9, 7, 1, 5, 10, 3]
+    assert codec.decode([9, 7, 1, 5, 10, 3]) == text
 
 
 def test_ascii_string_matches_tiktoken():

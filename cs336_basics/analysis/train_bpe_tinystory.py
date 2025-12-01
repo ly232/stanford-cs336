@@ -16,7 +16,6 @@ uv run cs336_basics/analysis/train_bpe_tinystory.py \
   --special_tokens="<|endoftext|>"\
   > /tmp/TinyStoriesV2-BPE-train.out
 """
-
 from cs336_basics.bpe.trainer import BpeTrainer
 
 import argparse
