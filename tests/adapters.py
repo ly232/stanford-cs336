@@ -598,8 +598,13 @@ def run_train_bpe(
     with open(input_path, 'r') as f:
         text = f.read()
 
+    chunks = [text]
     for st in special_tokens:
-        text = text.replace(st, '')
+        new_chunks = []
+        while chunks:
+            chunk = chunks.pop()
+            new_chunks.extend(chunk.split(st))
+        chunks = new_chunks
 
     vocabs = {i: bytes([i]) for i in range(256)}
     for st in special_tokens:
@@ -609,7 +614,9 @@ def run_train_bpe(
 
     # Pre-tokenization.
     PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-    pretokens = re.findall(PAT, text)
+    pretokens = []
+    for chunk in chunks:
+        pretokens.extend(re.findall(PAT, chunk))
 
     # Optimization to avoid repeating the pairwise sliding for the same pretoken
     pretokens_counter = Counter(pretokens)
