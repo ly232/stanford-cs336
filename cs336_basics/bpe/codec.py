@@ -1,9 +1,27 @@
 from collections import deque
 from cs336_basics.bpe.pretokenizer import Pretokenizer
 from itertools import pairwise
-from typing import Iterable, Iterator
+from typing import Any, Generator, Iterable, Iterator
 
 import pickle
+
+
+class CodecIterator(Iterator[int]):
+
+    def __init__(self, iterable: Iterable[str], codec: 'BpeCodec'):
+        self.iterator = iter(iterable)
+        self.ids: deque[int] = deque([])
+        self.codec = codec
+
+    def __iter__(self):
+        return self
+    
+    def __next__(self) -> int:
+        while True:
+            if self.ids:
+                return self.ids.popleft()
+            self.ids = deque(self.codec.encode(text=next(self.iterator)))
+
 
 class BpeCodec:
 
@@ -18,8 +36,7 @@ class BpeCodec:
             for idx, token in vocabs.items()
         }
         self.merges = merges
-        self.special_tokens = special_tokens
-
+        self.special_tokens = special_tokens or []
         self.pretokenizer = Pretokenizer(special_tokens)
 
     @classmethod
@@ -34,6 +51,9 @@ class BpeCodec:
         pretokens = self.pretokenizer.split(text)
         ids = []
         for pretoken in pretokens:
+            if pretoken in self.special_tokens:
+                ids.append(self.inverted_vocabs[pretoken.encode()])
+                continue
             tokens = [bytes([b]) for b in pretoken.encode('utf-8')]
             for merge in self.merges:
                 new_tokens = []
@@ -53,7 +73,7 @@ class BpeCodec:
         return ids
 
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
-        ...
+        return CodecIterator(iterable, self)
 
     def decode(self, ids: list[int]) -> str:
         return b''\
