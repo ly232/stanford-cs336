@@ -12,7 +12,13 @@ class Pretokenizer:
         self.special_tokens = sorted(self.special_tokens, reverse=True)
         self.pattern = pattern
 
-    def split(self, text):
+    def pretokenize_for_inference(self, text):
+        """Pretokenizes the input text into pretokens.
+
+        This is used for inference and will retain the special tokens. Note that
+        training below may also reuse this method to get the pretokens (special
+        tokens inclusive) to keep consistent pretokenization logic.
+        """
         chunks = [text]
 
         def _split_chunk(chunk, special_token):
@@ -51,9 +57,17 @@ class Pretokenizer:
                 pretokens.extend(re.findall(self.pattern, chunk))
         return pretokens
 
-    def pretokenize(self, text: str) -> tuple[dict[str, list[bytes]], Counter]:
-        """Pretokenizes to mapping pretoken string to token bytes split."""
-        pretokens = self.split(text)
+    def pretokenize_for_training(
+            self, text: str) -> tuple[dict[str, list[bytes]], Counter]:
+        """Pretokenizes to mapping pretoken string to token bytes split.
+        
+        Note this is only used for training, so special tokens will be ignored.
+        """
+        pretokens = [
+            pt 
+            for pt in self.pretokenize_for_inference(text) 
+            if pt not in self.special_tokens
+        ]
 
         # Optimization to avoid repeating the pairwise sliding for the same pretoken
         pretokens_counter = Counter(pretokens)

@@ -48,7 +48,7 @@ class BpeCodec:
         return BpeCodec(vocabs, merges, special_tokens)
 
     def encode(self, text: str) -> list[int]:
-        pretokens = self.pretokenizer.split(text)
+        pretokens = self.pretokenizer.pretokenize_for_inference(text)
         ids = []
         for pretoken in pretokens:
             if pretoken in self.special_tokens:

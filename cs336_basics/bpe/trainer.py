@@ -39,7 +39,8 @@ class BpeTrainer:
     def train(self, input_path: str | os.PathLike):
         with open(input_path, 'r') as f:
             text = f.read()
-        text_sequence, pretokens_counter = self.pretokenizer.pretokenize(text)
+        text_sequence, pretokens_counter = \
+            self.pretokenizer.pretokenize_for_training(text)
 
         from collections import defaultdict
         import time
