@@ -1,3 +1,7 @@
+'''
+uv run pytest -k test_linear
+'''
+
 from einops import rearrange
 import numpy
 import torch
