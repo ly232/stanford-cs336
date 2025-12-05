@@ -1,5 +1,6 @@
 '''
 uv run pytest -k test_linear
+uv run pytest -k test_embedding
 '''
 
 from einops import rearrange

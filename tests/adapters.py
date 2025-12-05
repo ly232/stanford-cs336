@@ -13,6 +13,7 @@ from cs336_basics.bpe.trainer import BpeTrainer
 from cs336_basics.bpe.codec import BpeCodec
 
 from cs336_basics.model.linear import Linear
+from cs336_basics.model.embedding import Embedding
 
 def run_linear(
     d_in: int,
@@ -57,7 +58,9 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    raise NotImplementedError
+    embedding = Embedding(vocab_size, d_model)
+    embedding.load_state_dict({'embedding_table': weights}, strict=False)
+    return embedding(token_ids)
 
 
 def run_swiglu(
