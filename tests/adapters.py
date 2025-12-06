@@ -14,6 +14,7 @@ from cs336_basics.bpe.codec import BpeCodec
 
 from cs336_basics.model.linear import Linear
 from cs336_basics.model.embedding import Embedding
+from cs336_basics.model.rms_layer_norm import RmsLayerNorm
 
 def run_linear(
     d_in: int,
@@ -387,7 +388,9 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    rms_norm = RmsLayerNorm(d_model, eps)
+    rms_norm.load_state_dict({'weights': weights}, strict=False)
+    return rms_norm(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:

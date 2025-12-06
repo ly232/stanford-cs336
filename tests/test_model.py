@@ -1,6 +1,7 @@
 '''
 uv run pytest -k test_linear
 uv run pytest -k test_embedding
+uv run pytest -k test_rmsnorm
 '''
 
 from einops import rearrange
