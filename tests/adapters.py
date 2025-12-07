@@ -16,7 +16,7 @@ from cs336_basics.model.linear import Linear
 from cs336_basics.model.embedding import Embedding
 from cs336_basics.model.rms_layer_norm import RmsLayerNorm
 from cs336_basics.model.positionwise_feedforward import PositionwiseFeedforward
-from cs336_basics.model.rotary_positional_embeddin import RotaryPositionalEmbedding
+from cs336_basics.model.rotary_positional_embedding import RotaryPositionalEmbedding
 from cs336_basics.model.utils import softmax, scaled_dot_product_attention
 
 def run_linear(
