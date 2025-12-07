@@ -18,9 +18,6 @@ class PositionwiseFeedforward(nn.Module):
         return torch.multiply(x, torch.sigmoid(x))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        print('!!!!! x shape')
-        print(x.shape)
-        print(self.w1.shape)
         return einsum(
             self.w2,
             torch.multiply(
