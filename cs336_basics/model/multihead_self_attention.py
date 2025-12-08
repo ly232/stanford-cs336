@@ -12,12 +12,15 @@ import torch.nn as nn
 
 class SingleHeadSelfAttention(nn.Module):
 
-    def __init__(self, d_model: int, d_k: int, d_v: int, seq_len: int, theta: float | None = None):
+    def __init__(self, d_model: int, d_k: int, d_v: int, seq_len: int, theta: float | None = None, token_positions: torch.Tensor | None = None):
         super().__init__()
         self.rotary_positional_embedding = None
         if theta is not None:
             self.rotary_positional_embedding = RotaryPositionalEmbedding(
                 theta, d_k, seq_len)
+            if token_positions is None:
+                token_positions = torch.arange(seq_len)
+            self.register_buffer('token_positions', token_positions)
         self.queries = Linear(in_features=d_model, out_features=d_k)
         self.keys = Linear(in_features=d_model, out_features=d_k)
         self.values = Linear(in_features=d_model, out_features=d_v)
@@ -26,7 +29,7 @@ class SingleHeadSelfAttention(nn.Module):
             'causal_mask', 
             torch.tril(torch.ones(seq_len, seq_len)) == 1)
 
-    def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         In shape: (..., seq_len, d_model)
         Out shape: (..., seq_len, d_v)
@@ -35,23 +38,22 @@ class SingleHeadSelfAttention(nn.Module):
         keys = self.keys(x)  # (..., seq_len, d_k)
         values = self.values(x)  # (..., seq_len, d_v)
         if self.rotary_positional_embedding is not None:
-            assert token_positions is not None
-            queries = self.rotary_positional_embedding(queries, token_positions)
-            keys = self.rotary_positional_embedding(keys, token_positions)
+            queries = self.rotary_positional_embedding(queries, self.token_positions)
+            keys = self.rotary_positional_embedding(keys, self.token_positions)
         return scaled_dot_product_attention(
             queries, keys, values, self.causal_mask)
 
 
 class MultiHeadSelfAttention(nn.Module):
 
-    def __init__(self, d_model: int, num_heads: int, seq_len: int, theta: float | None=None):
+    def __init__(self, d_model: int, num_heads: int, seq_len: int, theta: float | None=None, token_positions: torch.Tensor | None = None):
         super().__init__()
 
         # Attention layers
         d_k, d_v = d_model // num_heads, d_model // num_heads
         self.heads = nn.ModuleList([
             SingleHeadSelfAttention(
-                d_model, d_k, d_v, seq_len, theta)
+                d_model, d_k, d_v, seq_len, theta, token_positions)
             for _ in range(num_heads)
         ])
 
@@ -63,7 +65,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.projection = Linear(
             in_features=num_heads*d_v, out_features=d_model)
 
-    def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         In: (..., seq_len, d_model)
         Out: (..., seq_len, d_model)
@@ -71,8 +73,7 @@ class MultiHeadSelfAttention(nn.Module):
         # Each head produces h(x) which is (..., seq_len, dv).
         # Concat together all num_heads of them along the -1 dimension,
         # so that dimension -1 has total length dv * num_heads = d_model.
-        out = torch.cat(
-            [h(x, token_positions) for h in self.heads], dim=-1)  # (..., seq_len, d_model)
+        out = torch.cat([h(x) for h in self.heads], dim=-1)  # (..., seq_len, d_model)
         # Apply projection.
         out = self.projection(out)
         return out

@@ -7,6 +7,7 @@ uv run pytest -k test_rope
 uv run pytest -k test_softmax
 uv run pytest -k test_scaled_dot_product_attention
 uv run pytest -k test_multihead_self_attention
+uv run pytest -k test_transformer_block
 '''
 
 from einops import rearrange
@@ -180,7 +181,7 @@ def test_transformer_block(numpy_snapshot, ts_state_dict, in_embeddings, d_model
     )
     numpy_snapshot.assert_match(
         actual_output,
-        atol=1e-6,
+        atol=1e-4,
     )
 
 

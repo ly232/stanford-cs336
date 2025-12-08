@@ -18,6 +18,7 @@ from cs336_basics.model.multihead_self_attention import MultiHeadSelfAttention
 from cs336_basics.model.rms_layer_norm import RmsLayerNorm
 from cs336_basics.model.positionwise_feedforward import PositionwiseFeedforward
 from cs336_basics.model.rotary_positional_embedding import RotaryPositionalEmbedding
+from cs336_basics.model.transformer_block import TransformerBlock
 from cs336_basics.model.utils import softmax, scaled_dot_product_attention
 
 def run_linear(
@@ -207,14 +208,14 @@ def run_multihead_self_attention_with_rope(
         implementation with the given QKV projection weights and input features.
     """
     seq_len = in_features.shape[-2]
-    model = MultiHeadSelfAttention(d_model, num_heads, seq_len, theta)
+    model = MultiHeadSelfAttention(d_model, num_heads, seq_len, theta, token_positions)
     d_k, d_v = d_model // num_heads, d_model // num_heads
     for i, head in enumerate(model.heads):
         head.queries.load_state_dict({'weights': q_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
         head.keys.load_state_dict({'weights': k_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
         head.values.load_state_dict({'weights': v_proj_weight[i*d_v:(i+1)*d_v, :]}, strict=False)
     model.projection.load_state_dict({'weights': o_proj_weight}, strict=False)
-    return model(in_features, token_positions)
+    return model(in_features)
 
 
 def run_rope(
@@ -310,7 +311,36 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    seq_len = in_features.shape[-2]
+    model = TransformerBlock(
+        d_model, num_heads, d_ff, 
+        seq_len, theta)
+
+    # Load MHA parameters:
+    d_k, d_v = d_model // num_heads, d_model // num_heads
+    q_proj_weight, k_proj_weight, v_proj_weight, o_proj_weight = \
+        weights['attn.q_proj.weight'], \
+        weights['attn.k_proj.weight'], \
+        weights['attn.v_proj.weight'], \
+        weights['attn.output_proj.weight']
+    for i, head in enumerate(model.mha.heads):
+        head.queries.load_state_dict({'weights': q_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
+        head.keys.load_state_dict({'weights': k_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
+        head.values.load_state_dict({'weights': v_proj_weight[i*d_v:(i+1)*d_v, :]}, strict=False)
+    model.mha.projection.load_state_dict({'weights': o_proj_weight}, strict=False)
+    
+    # Load RMS norm layers parameters:
+    model.mha_prenorm.load_state_dict({'weights': weights['ln1.weight']}, strict=False)
+    model.pff_prenorm.load_state_dict({'weights': weights['ln2.weight']}, strict=False)
+
+    # Load positionwise feedforward network's parameters:
+    model.pff.load_state_dict({
+        'w1': weights['ffn.w1.weight'],
+        'w2': weights['ffn.w2.weight'],
+        'w3': weights['ffn.w3.weight'],
+    }, strict=False)
+
+    return model(in_features)
 
 
 def run_transformer_lm(

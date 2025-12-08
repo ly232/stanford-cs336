@@ -1,4 +1,4 @@
-"""SwiGLU for positionwise feedforward."""
+"""SwiGLU for positionwise feedforward (SWIGLU)."""
 
 from einops import einsum
 from torch.nn import functional as F
@@ -18,6 +18,10 @@ class PositionwiseFeedforward(nn.Module):
         return torch.multiply(x, torch.sigmoid(x))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        In: (..., seq, model)
+        Out: (..., seq, model)
+        """
         return einsum(
             self.w2,
             torch.multiply(
