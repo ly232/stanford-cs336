@@ -5,6 +5,8 @@ uv run pytest -k test_rmsnorm
 uv run pytest -k test_swiglu
 uv run pytest -k test_rope
 uv run pytest -k test_softmax
+uv run pytest -k test_scaled_dot_product_attention
+uv run pytest -k test_multihead_self_attention
 '''
 
 from einops import rearrange

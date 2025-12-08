@@ -30,6 +30,10 @@ def scaled_dot_product_attention(
     Given key (K), query (Q), and value (V) tensors, return
     the output of your scaled dot product attention implementation.
 
+    Note:
+    - m & n are the same as seq_len for self-attention (decoder-only arch).
+    - m == keys == values, n == queries for cross-attention (enc+dec arch).
+
     Args:
         Q (Float[Tensor, " ... queries d_k"]): Query tensor
         K (Float[Tensor, " ... keys d_k"]): Key tensor

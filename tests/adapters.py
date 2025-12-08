@@ -14,6 +14,7 @@ from cs336_basics.bpe.codec import BpeCodec
 
 from cs336_basics.model.linear import Linear
 from cs336_basics.model.embedding import Embedding
+from cs336_basics.model.multihead_self_attention import MultiHeadSelfAttention
 from cs336_basics.model.rms_layer_norm import RmsLayerNorm
 from cs336_basics.model.positionwise_feedforward import PositionwiseFeedforward
 from cs336_basics.model.rotary_positional_embedding import RotaryPositionalEmbedding
@@ -157,7 +158,15 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    seq_len = in_features.shape[-2]
+    model = MultiHeadSelfAttention(d_model, num_heads, seq_len)
+    d_k, d_v = d_model // num_heads, d_model // num_heads
+    for i, head in enumerate(model.heads):
+        head.queries.load_state_dict({'weights': q_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
+        head.keys.load_state_dict({'weights': k_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
+        head.values.load_state_dict({'weights': v_proj_weight[i*d_v:(i+1)*d_v, :]}, strict=False)
+    model.projection.load_state_dict({'weights': o_proj_weight}, strict=False)
+    return model(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -197,7 +206,15 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    seq_len = in_features.shape[-2]
+    model = MultiHeadSelfAttention(d_model, num_heads, seq_len, theta)
+    d_k, d_v = d_model // num_heads, d_model // num_heads
+    for i, head in enumerate(model.heads):
+        head.queries.load_state_dict({'weights': q_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
+        head.keys.load_state_dict({'weights': k_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
+        head.values.load_state_dict({'weights': v_proj_weight[i*d_v:(i+1)*d_v, :]}, strict=False)
+    model.projection.load_state_dict({'weights': o_proj_weight}, strict=False)
+    return model(in_features, token_positions)
 
 
 def run_rope(

@@ -20,7 +20,11 @@ class Linear(nn.Module):
         self.dtype = dtype
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        In: (..., seq_len, in_features)
+        Out: (..., seq_len, out_features)
+        """
         return einsum(
             x, 
             self.weights, 
-            'batch sequence d_in, d_out d_in -> batch sequence d_out')
+            'batch ... sequence d_in, d_out d_in -> batch ... sequence d_out')
