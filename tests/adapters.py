@@ -19,6 +19,7 @@ from cs336_basics.model.rms_layer_norm import RmsLayerNorm
 from cs336_basics.model.positionwise_feedforward import PositionwiseFeedforward
 from cs336_basics.model.rotary_positional_embedding import RotaryPositionalEmbedding
 from cs336_basics.model.transformer_block import TransformerBlock
+from cs336_basics.model.transformer_language_model import TransformerLanguageModel
 from cs336_basics.model.utils import softmax, scaled_dot_product_attention
 
 def run_linear(
@@ -316,29 +317,17 @@ def run_transformer_block(
         d_model, num_heads, d_ff, 
         seq_len, theta)
 
-    # Load MHA parameters:
-    d_k, d_v = d_model // num_heads, d_model // num_heads
-    q_proj_weight, k_proj_weight, v_proj_weight, o_proj_weight = \
-        weights['attn.q_proj.weight'], \
-        weights['attn.k_proj.weight'], \
-        weights['attn.v_proj.weight'], \
-        weights['attn.output_proj.weight']
-    for i, head in enumerate(model.mha.heads):
-        head.queries.load_state_dict({'weights': q_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
-        head.keys.load_state_dict({'weights': k_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
-        head.values.load_state_dict({'weights': v_proj_weight[i*d_v:(i+1)*d_v, :]}, strict=False)
-    model.mha.projection.load_state_dict({'weights': o_proj_weight}, strict=False)
-    
-    # Load RMS norm layers parameters:
-    model.mha_prenorm.load_state_dict({'weights': weights['ln1.weight']}, strict=False)
-    model.pff_prenorm.load_state_dict({'weights': weights['ln2.weight']}, strict=False)
-
-    # Load positionwise feedforward network's parameters:
-    model.pff.load_state_dict({
-        'w1': weights['ffn.w1.weight'],
-        'w2': weights['ffn.w2.weight'],
-        'w3': weights['ffn.w3.weight'],
-    }, strict=False)
+    model.load_weights(
+        weights['attn.q_proj.weight'],
+        weights['attn.k_proj.weight'],
+        weights['attn.v_proj.weight'],
+        weights['attn.output_proj.weight'],
+        weights['ln1.weight'],
+        weights['ffn.w1.weight'],
+        weights['ffn.w2.weight'],
+        weights['ffn.w3.weight'],
+        weights['ln2.weight'],
+    )
 
     return model(in_features)
 
@@ -422,7 +411,29 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    model = TransformerLanguageModel(
+        vocab_size, context_length, d_model, 
+        num_layers, num_heads, d_ff, rope_theta)
+    model.token_embedding.load_state_dict({
+        'embedding_table': weights['token_embeddings.weight']
+    })
+    for i in range(num_layers):
+        model.transformer_blocks[i].load_weights(
+            weights[f'layers.{i}.attn.q_proj.weight'],
+            weights[f'layers.{i}.attn.k_proj.weight'],
+            weights[f'layers.{i}.attn.v_proj.weight'],
+            weights[f'layers.{i}.attn.output_proj.weight'],
+            weights[f'layers.{i}.ln1.weight'],
+            weights[f'layers.{i}.ffn.w1.weight'],
+            weights[f'layers.{i}.ffn.w2.weight'],
+            weights[f'layers.{i}.ffn.w3.weight'],
+            weights[f'layers.{i}.ln2.weight'],
+        )
+    model.final_mlp_prenorm.load_state_dict(
+        {'weights': weights['ln_final.weight']})
+    model.final_mlp.load_state_dict(
+        {'weights': weights['lm_head.weight']})
+    return model(in_indices)
 
 
 def run_rmsnorm(

@@ -13,7 +13,6 @@ class RotaryPositionalEmbedding(nn.Module):
         self.theta = theta
         self.d_k = d_k
         self.device = device
-        self.seq_len = max_seq_len
 
         # Pre-compute angles.
         angles = torch.stack(
@@ -21,7 +20,7 @@ class RotaryPositionalEmbedding(nn.Module):
                 torch.tensor(
                     [i / (self.theta ** (2 * k / self.d_k))
                      for k in range(self.d_k // 2)])
-            for i in range(self.seq_len)
+            for i in range(max_seq_len)
         ])  # (seq_len, d_k // 2)
         self.register_buffer('cos', torch.cos(angles))
         self.register_buffer('sin', torch.sin(angles))
@@ -32,6 +31,8 @@ class RotaryPositionalEmbedding(nn.Module):
         Returns a tensor of same shape. token_positions has shape (..., seq_len)
         to indicate position of x's elements alone the seq_len dimension.
         """
+        if token_positions is None:
+            token_positions = torch.arange(x.shape[-2])
         x_even, x_odd = x[..., ::2], x[..., 1::2]
         # broadcasting trick:
         # - self.sin is (seq, d//2)
