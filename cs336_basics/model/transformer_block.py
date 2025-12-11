@@ -48,6 +48,10 @@ class TransformerBlock(nn.Module):
         }, strict=False)
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None=None) -> torch.Tensor:
+        """
+        In: batch sequence_length d_model
+        Out: batch sequence_length d_model
+        """
         y = x + self.mha(self.mha_prenorm(x), token_positions)  # attention is linear (in V).
         y = y + self.pff(self.pff_prenorm(y))  # to add non-linearity.
         return y

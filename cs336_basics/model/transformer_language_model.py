@@ -38,6 +38,10 @@ class TransformerLanguageModel(nn.Module):
         self.final_mlp = Linear(d_model, vocab_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        In: batch_size sequence_length
+        Out: batch_size sequence_length vocab_size
+        """
         token_positions= torch.arange(x.shape[-1])
         out = self.token_embedding(x)
         for tb in self.transformer_blocks:
