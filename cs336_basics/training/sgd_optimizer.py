@@ -82,7 +82,7 @@ def test_sgd_lr1e1(lr):
     opt = SGD([weights], lr)
 
     for t in range(10):
-        opt.zero_grad()  # reset grads
+        opt.zero_grad()  # reset grads; note the weights remain from last itr.
         loss = (weights ** 2).mean()
         print(loss.cpu().item())
         loss.backward()  # backprop to compute grad

@@ -1,3 +1,7 @@
+"""
+uv run pytest -k test_adamw
+"""
+
 import numpy
 import torch
 
