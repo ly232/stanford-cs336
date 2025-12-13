@@ -22,6 +22,8 @@ from cs336_basics.model.transformer_block import TransformerBlock
 from cs336_basics.model.transformer_language_model import TransformerLanguageModel
 from cs336_basics.model.utils import softmax, scaled_dot_product_attention
 
+from cs336_basics.training.utils import cross_entropy
+
 def run_linear(
     d_in: int,
     d_out: int,
@@ -515,7 +517,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
 
 
 def run_cross_entropy(
-    inputs: Float[Tensor, " batch_size vocab_size"], targets: Int[Tensor, " batch_size"]
+    inputs: Float[Tensor, "batch_size vocab_size"], targets: Int[Tensor, " batch_size"]
 ) -> Float[Tensor, ""]:
     """Given a tensor of inputs and targets, compute the average cross-entropy
     loss across examples.
@@ -529,7 +531,7 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    return cross_entropy(inputs, targets)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:

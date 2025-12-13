@@ -1,3 +1,7 @@
+"""
+uv run pytest -k test_cross_entropy
+"""
+
 import numpy
 import torch
 import torch.nn.functional as F
