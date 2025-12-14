@@ -164,3 +164,4 @@ cython_debug/
 
 prof/
 cs336_basics/analysis/data/
+uv.lock
