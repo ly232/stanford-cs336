@@ -24,6 +24,7 @@ from cs336_basics.model.utils import softmax, scaled_dot_product_attention
 
 from cs336_basics.training.utils import cross_entropy
 from cs336_basics.training.utils import get_lr_cosine_schedule
+from cs336_basics.training.utils import gradient_clipping
 from cs336_basics.training.adamw_optimizer import AdamW
 
 def run_linear(
@@ -545,7 +546,7 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
-    raise NotImplementedError
+    gradient_clipping(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> Any:
