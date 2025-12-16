@@ -27,6 +27,9 @@ from cs336_basics.training.utils import get_lr_cosine_schedule
 from cs336_basics.training.utils import gradient_clipping
 from cs336_basics.training.adamw_optimizer import AdamW
 
+from cs336_basics.data.data_loader import DataLoader
+
+
 def run_linear(
     d_in: int,
     d_out: int,
@@ -47,7 +50,7 @@ def run_linear(
     """
 
     model = Linear(d_in, d_out)
-    model.load_state_dict({'weights': weights}, strict=False)
+    model.load_state_dict({"weights": weights}, strict=False)
     return model(in_features)
 
 
@@ -71,7 +74,7 @@ def run_embedding(
     """
 
     embedding = Embedding(vocab_size, d_model)
-    embedding.load_state_dict({'embedding_table': weights}, strict=False)
+    embedding.load_state_dict({"embedding_table": weights}, strict=False)
     return embedding(token_ids)
 
 
@@ -105,11 +108,13 @@ def run_swiglu(
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
     swiglu = PositionwiseFeedforward(d_model, d_ff)
-    swiglu.load_state_dict({
-        'w1': w1_weight,
-        'w2': w2_weight,
-        'w3': w3_weight,
-    })
+    swiglu.load_state_dict(
+        {
+            "w1": w1_weight,
+            "w2": w2_weight,
+            "w3": w3_weight,
+        }
+    )
     return swiglu(in_features)
 
 
@@ -169,10 +174,16 @@ def run_multihead_self_attention(
     model = MultiHeadSelfAttention(d_model, num_heads, seq_len)
     d_k, d_v = d_model // num_heads, d_model // num_heads
     for i, head in enumerate(model.heads):
-        head.queries.load_state_dict({'weights': q_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
-        head.keys.load_state_dict({'weights': k_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
-        head.values.load_state_dict({'weights': v_proj_weight[i*d_v:(i+1)*d_v, :]}, strict=False)
-    model.projection.load_state_dict({'weights': o_proj_weight}, strict=False)
+        head.queries.load_state_dict(
+            {"weights": q_proj_weight[i * d_k : (i + 1) * d_k, :]}, strict=False
+        )
+        head.keys.load_state_dict(
+            {"weights": k_proj_weight[i * d_k : (i + 1) * d_k, :]}, strict=False
+        )
+        head.values.load_state_dict(
+            {"weights": v_proj_weight[i * d_v : (i + 1) * d_v, :]}, strict=False
+        )
+    model.projection.load_state_dict({"weights": o_proj_weight}, strict=False)
     return model(in_features)
 
 
@@ -217,10 +228,16 @@ def run_multihead_self_attention_with_rope(
     model = MultiHeadSelfAttention(d_model, num_heads, seq_len, theta, token_positions)
     d_k, d_v = d_model // num_heads, d_model // num_heads
     for i, head in enumerate(model.heads):
-        head.queries.load_state_dict({'weights': q_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
-        head.keys.load_state_dict({'weights': k_proj_weight[i*d_k:(i+1)*d_k, :]}, strict=False)
-        head.values.load_state_dict({'weights': v_proj_weight[i*d_v:(i+1)*d_v, :]}, strict=False)
-    model.projection.load_state_dict({'weights': o_proj_weight}, strict=False)
+        head.queries.load_state_dict(
+            {"weights": q_proj_weight[i * d_k : (i + 1) * d_k, :]}, strict=False
+        )
+        head.keys.load_state_dict(
+            {"weights": k_proj_weight[i * d_k : (i + 1) * d_k, :]}, strict=False
+        )
+        head.values.load_state_dict(
+            {"weights": v_proj_weight[i * d_v : (i + 1) * d_v, :]}, strict=False
+        )
+    model.projection.load_state_dict({"weights": o_proj_weight}, strict=False)
     return model(in_features)
 
 
@@ -318,20 +335,18 @@ def run_transformer_block(
         running the Transformer block on the input features while using RoPE.
     """
     seq_len = in_features.shape[-2]
-    model = TransformerBlock(
-        d_model, num_heads, d_ff, 
-        seq_len, theta)
+    model = TransformerBlock(d_model, num_heads, d_ff, seq_len, theta)
 
     model.load_weights(
-        weights['attn.q_proj.weight'],
-        weights['attn.k_proj.weight'],
-        weights['attn.v_proj.weight'],
-        weights['attn.output_proj.weight'],
-        weights['ln1.weight'],
-        weights['ffn.w1.weight'],
-        weights['ffn.w2.weight'],
-        weights['ffn.w3.weight'],
-        weights['ln2.weight'],
+        weights["attn.q_proj.weight"],
+        weights["attn.k_proj.weight"],
+        weights["attn.v_proj.weight"],
+        weights["attn.output_proj.weight"],
+        weights["ln1.weight"],
+        weights["ffn.w1.weight"],
+        weights["ffn.w2.weight"],
+        weights["ffn.w3.weight"],
+        weights["ln2.weight"],
     )
 
     return model(in_features)
@@ -417,27 +432,25 @@ def run_transformer_lm(
         next-word distribution for each token.
     """
     model = TransformerLanguageModel(
-        vocab_size, context_length, d_model, 
-        num_layers, num_heads, d_ff, rope_theta)
-    model.token_embedding.load_state_dict({
-        'embedding_table': weights['token_embeddings.weight']
-    })
+        vocab_size, context_length, d_model, num_layers, num_heads, d_ff, rope_theta
+    )
+    model.token_embedding.load_state_dict(
+        {"embedding_table": weights["token_embeddings.weight"]}
+    )
     for i in range(num_layers):
         model.transformer_blocks[i].load_weights(
-            weights[f'layers.{i}.attn.q_proj.weight'],
-            weights[f'layers.{i}.attn.k_proj.weight'],
-            weights[f'layers.{i}.attn.v_proj.weight'],
-            weights[f'layers.{i}.attn.output_proj.weight'],
-            weights[f'layers.{i}.ln1.weight'],
-            weights[f'layers.{i}.ffn.w1.weight'],
-            weights[f'layers.{i}.ffn.w2.weight'],
-            weights[f'layers.{i}.ffn.w3.weight'],
-            weights[f'layers.{i}.ln2.weight'],
+            weights[f"layers.{i}.attn.q_proj.weight"],
+            weights[f"layers.{i}.attn.k_proj.weight"],
+            weights[f"layers.{i}.attn.v_proj.weight"],
+            weights[f"layers.{i}.attn.output_proj.weight"],
+            weights[f"layers.{i}.ln1.weight"],
+            weights[f"layers.{i}.ffn.w1.weight"],
+            weights[f"layers.{i}.ffn.w2.weight"],
+            weights[f"layers.{i}.ffn.w3.weight"],
+            weights[f"layers.{i}.ln2.weight"],
         )
-    model.final_mlp_prenorm.load_state_dict(
-        {'weights': weights['ln_final.weight']})
-    model.final_mlp.load_state_dict(
-        {'weights': weights['lm_head.weight']})
+    model.final_mlp_prenorm.load_state_dict({"weights": weights["ln_final.weight"]})
+    model.final_mlp.load_state_dict({"weights": weights["lm_head.weight"]})
     return model(in_indices)
 
 
@@ -462,7 +475,7 @@ def run_rmsnorm(
         RMSNorm of the `in_features`.
     """
     rms_norm = RmsLayerNorm(d_model, eps)
-    rms_norm.load_state_dict({'weights': weights}, strict=False)
+    rms_norm.load_state_dict({"weights": weights}, strict=False)
     return rms_norm(in_features)
 
 
@@ -500,7 +513,8 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    raise NotImplementedError
+    data_loader = DataLoader()
+    return data_loader.get_batch(dataset, batch_size, context_length, device)
 
 
 def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, " ..."]:
@@ -537,7 +551,9 @@ def run_cross_entropy(
     return cross_entropy(inputs, targets)
 
 
-def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
+def run_gradient_clipping(
+    parameters: Iterable[torch.nn.Parameter], max_l2_norm: float
+) -> None:
     """Given a set of parameters, clip their combined gradients to have l2 norm at most max_l2_norm.
 
     Args:
@@ -653,7 +669,9 @@ def get_tokenizer(
     codec = BpeCodec(vocab, merges, special_tokens)
     return codec
 
+
 # from line_profiler import profile
+
 
 # @profile
 def run_train_bpe(
