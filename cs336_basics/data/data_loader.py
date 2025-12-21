@@ -22,8 +22,10 @@ class DataLoader:
         xs, ys = [], []
         for i in range(batch_size):
             start_idx = random.randint(0, len(dataset) - context_length - 1)
-            x = torch.Tensor(dataset[start_idx : start_idx + context_length])
-            y = torch.Tensor(dataset[start_idx + 1 : start_idx + context_length + 1])
+            x = torch.from_numpy(dataset[start_idx : start_idx + context_length]).long()
+            y = torch.from_numpy(
+                dataset[start_idx + 1 : start_idx + context_length + 1]
+            ).long()
             xs.append(x.unsqueeze(0))
             ys.append(y.unsqueeze(0))
         return torch.cat(xs, dim=0).long().to(device), torch.cat(ys, dim=0).long().to(
