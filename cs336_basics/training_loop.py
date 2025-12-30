@@ -1,5 +1,13 @@
-"""Script to run training loop."""
+"""Script to run training loop.
 
+uv run python cs336_basics/training_loop.py
+"""
+
+from pathlib import Path
+from tests.common import FIXTURES_PATH
+
+from cs336_basics.bpe.trainer import BpeTrainer
+from cs336_basics.bpe.codec import BpeCodec
 from cs336_basics.model.transformer_language_model import TransformerLanguageModel
 from cs336_basics.data.data_loader import DataLoader
 from cs336_basics.training.adamw_optimizer import AdamW
@@ -8,17 +16,20 @@ from cs336_basics.data.checkpoint import Checkpoint
 
 import numpy as np
 import torch
+import pickle
+import tqdm
 
 
 def main():
     # Model hyperparameters.
-    vocab_size = 1024
-    context_length = 8
-    d_model = 16
-    num_layers = 2
-    num_heads = 4
-    d_ff = 64
+    vocab_size = 10000
+    context_length = 254
+    d_model = 512
+    num_layers = 4
+    num_heads = 16
+    d_ff = 1344
     rope_theta = 10000.0
+    max_num_tokens = 4e7
 
     # Optimizer hyperparameters.
     lr = 1e-3
@@ -26,12 +37,40 @@ def main():
     betas = (0.9, 0.999)
     eps = 1e-8
 
+    # Train BPE.
+    tokens_path = Path("./tokens.npy")
+    bpe_vocab_path = Path("./bpe_vocab.pkl")
+    bpe_merges_path = Path("./bpe_merges.pkl")
+    tinystories_path = FIXTURES_PATH / "tinystories_sample_5M.txt"
+    if not tokens_path.exists():
+        if not bpe_vocab_path.exists() or not bpe_merges_path.exists():
+            bpe_trainer = BpeTrainer(
+                vocab_size=vocab_size,
+                special_tokens=["<|endoftext|>"],
+            )
+            vocab, merges = bpe_trainer.train(input_path=tinystories_path)
+            bpe_trainer.persist(
+                vocab_path="./bpe_vocab.pkl",
+                merges_path="./bpe_merges.pkl",
+            )
+        else:
+            vocab = pickle.load(open(bpe_vocab_path, "rb"))
+            merges = pickle.load(open(bpe_merges_path, "rb"))
+        bpe_codec = BpeCodec(vocab, merges)
+        with open(tinystories_path, "r") as f:
+            text = f.read()
+            tokens = []
+            for tok in tqdm.tqdm(
+                bpe_codec.encode_iterable(text), desc="Encoding", unit="tok"
+            ):
+                tokens.append(tok)
+            np.save(tokens_path, np.array(tokens, dtype=np.int16))
+
     # Data loading params.
     batch_size = 32
     device = "cpu"
-    num_iters = 1000
-    tokens_path = "data/tokens.txt"
-    checkpoint_path = "checkpoints/model.chkpt"
+    num_iters = int(max_num_tokens // (batch_size * context_length))
+    checkpoint_path = "./model.chkpt"
 
     model = TransformerLanguageModel(
         vocab_size=vocab_size,
@@ -49,7 +88,7 @@ def main():
     data_loader = DataLoader()
     checkpoint = Checkpoint()
     dataset = np.memmap(tokens_path, dtype=np.int16, mode="r")
-    for step in range(num_iters):
+    for step in tqdm.tqdm(range(num_iters), desc="Training", unit="step"):
         x, y = data_loader.get_batch(
             dataset=dataset,
             batch_size=batch_size,
