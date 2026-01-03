@@ -5,8 +5,19 @@ import torch
 from cs336_basics.model.utils import softmax
 
 
-def next_token(model, prompt_tokens, max_length, temperature=1.0, nucleus_p=1.0):
-    batch_size, seq_length = prompt_tokens.shape
+def next_token(model, prompt_tokens, temperature=1.0, nucleus_p=1.0) -> torch.Tensor:
+    """Returns the next token sampled from the model given the prompt tokens.
+
+    Args:
+        model: A trained language model.
+        prompt_tokens: A torch.Tensor of shape (batch_size, seq_length)
+            representing the prompt token ids.
+        max_length: The maximum length of the generated sequence.
+        temperature: A float representing the sampling temperature.
+        nucleus_p: A float in (0, 1] representing the nucleus sampling probability.
+    Returns:
+        A torch.Tensor of shape (batch_size,) representing the sampled next token ids.
+    """
     logits = model(prompt_tokens) / temperature
     _, _, vocab_size = logits.shape  # batch_size, seq_length, vocab_size
     probs = softmax(logits[:, -1, :], dim=-1)  # batch_size, vocab_size
