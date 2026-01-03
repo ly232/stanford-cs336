@@ -38,25 +38,25 @@ def main():
     eps = 1e-8
 
     # Train BPE.
-    tokens_path = Path("./tokens.npy")
-    bpe_vocab_path = Path("./bpe_vocab.pkl")
-    bpe_merges_path = Path("./bpe_merges.pkl")
+    tokens_path = Path("./cs336_basics/data/tokens.npy")
+    bpe_vocab_path = Path("./cs336_basics/data/bpe_vocab.pkl")
+    bpe_merges_path = Path("./cs336_basics/data/bpe_merges.pkl")
     tinystories_path = FIXTURES_PATH / "tinystories_sample_5M.txt"
+    if not bpe_vocab_path.exists() or not bpe_merges_path.exists():
+        bpe_trainer = BpeTrainer(
+            vocab_size=vocab_size,
+            special_tokens=["<|endoftext|>"],
+        )
+        vocab, merges = bpe_trainer.train(input_path=tinystories_path)
+        bpe_trainer.persist(
+            vocab_path="./cs336_basics/data/bpe_vocab.pkl",
+            merges_path="./cs336_basics/data/bpe_merges.pkl",
+        )
+    else:
+        vocab = pickle.load(open(bpe_vocab_path, "rb"))
+        merges = pickle.load(open(bpe_merges_path, "rb"))
+    bpe_codec = BpeCodec(vocab, merges)
     if not tokens_path.exists():
-        if not bpe_vocab_path.exists() or not bpe_merges_path.exists():
-            bpe_trainer = BpeTrainer(
-                vocab_size=vocab_size,
-                special_tokens=["<|endoftext|>"],
-            )
-            vocab, merges = bpe_trainer.train(input_path=tinystories_path)
-            bpe_trainer.persist(
-                vocab_path="./bpe_vocab.pkl",
-                merges_path="./bpe_merges.pkl",
-            )
-        else:
-            vocab = pickle.load(open(bpe_vocab_path, "rb"))
-            merges = pickle.load(open(bpe_merges_path, "rb"))
-        bpe_codec = BpeCodec(vocab, merges)
         with open(tinystories_path, "r") as f:
             text = f.read()
             tokens = []
@@ -64,13 +64,15 @@ def main():
                 bpe_codec.encode_iterable(text), desc="Encoding", unit="tok"
             ):
                 tokens.append(tok)
-            np.save(tokens_path, np.array(tokens, dtype=np.int16))
+            # ATTN! dtype is crucial here. token ids must be non-negative to be indexble,
+            # so they must be uint. Picking uint16 here because vocab size is 10,000 < 2^16.
+            np.save(tokens_path, np.array(tokens, dtype=np.uint16))
 
     # Data loading params.
     batch_size = 32
     device = "cpu"
     num_iters = int(max_num_tokens // (batch_size * context_length))
-    checkpoint_path = "./model.chkpt"
+    checkpoint_path = "./cs336_basics/data/model.chkpt"
 
     model = TransformerLanguageModel(
         vocab_size=vocab_size,
@@ -87,7 +89,7 @@ def main():
 
     data_loader = DataLoader()
     checkpoint = Checkpoint()
-    dataset = np.memmap(tokens_path, dtype=np.int16, mode="r")
+    dataset = np.memmap(tokens_path, dtype=np.uint16, mode="r")
     for step in tqdm.tqdm(range(num_iters), desc="Training", unit="step"):
         x, y = data_loader.get_batch(
             dataset=dataset,
@@ -95,6 +97,20 @@ def main():
             context_length=context_length,
             device=device,
         )
+
+        ##
+        # debugging commands: peek into loaded x's and decode to make sure content makes sense
+        # if x.max() >= vocab_size:
+        #     print(f"Step: {step}, x.shape: {x.shape}, xmin: {x.min()}, xmax: {x.max()}")
+        #     print(x)
+        #     for token_ids in x:
+        #         if token_ids.max() >= vocab_size:
+        #             print("----- Decoding unexpected token ids -----")
+        #             print(token_ids)
+        #             decoded_text = bpe_codec.decode(token_ids.tolist())
+        #             print(decoded_text)
+        #             print("==========")
+        # print("#########")
 
         # Forward pass
         logits = model(x)

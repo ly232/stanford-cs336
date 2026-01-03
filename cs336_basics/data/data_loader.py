@@ -1,5 +1,6 @@
 """Data loader to load corpus data to feed into model training."""
 
+import numpy as np
 import numpy.typing as npt
 import random
 import torch
@@ -22,9 +23,13 @@ class DataLoader:
         xs, ys = [], []
         for i in range(batch_size):
             start_idx = random.randint(0, len(dataset) - context_length - 1)
-            x = torch.from_numpy(dataset[start_idx : start_idx + context_length]).long()
+            x = torch.from_numpy(
+                # Convert to int32 since pytorch doesn't support uint16 tensors.
+                dataset[start_idx : start_idx + context_length].astype(np.int32)
+            ).long()
             y = torch.from_numpy(
-                dataset[start_idx + 1 : start_idx + context_length + 1]
+                # Convert to int32 since pytorch doesn't support uint16 tensors.
+                dataset[start_idx + 1 : start_idx + context_length + 1].astype(np.int32)
             ).long()
             xs.append(x.unsqueeze(0))
             ys.append(y.unsqueeze(0))
